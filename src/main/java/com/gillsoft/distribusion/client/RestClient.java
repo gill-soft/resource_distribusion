@@ -56,6 +56,7 @@ public class RestClient {
 	
 	public static final String STATIONS_CACHE_KEY = "en.stations";
 	public static final String CONNECTIONS_CACHE_KEY = "connections.";
+	public static final String PROVIDER_INFO_CACHE_KEY = "provider.info.";
 	
 	@Autowired
     @Qualifier("RedisMemoryCache")
@@ -102,6 +103,15 @@ public class RestClient {
 		return sendRequest(template, STATIONS, HttpMethod.GET, params, new ParameterizedTypeReference<DataItems>() {});
 	}
 	
+	public DataItems getCachedTrips(String dispatchId, String arrivalId, Date date) throws IOCacheException {
+		try {
+			return getCachedObject(getConnectionsCacheKey(date, dispatchId, arrivalId),
+					new TripsUpdateTask(dispatchId, arrivalId, date));
+		} catch (ResponseError e) {
+			return null;
+		}
+	}
+	
 	public DataItems getTrips(String dispatchId, String arrivalId, Date date) throws ResponseError {
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("departure_stations[]", dispatchId);
@@ -110,14 +120,24 @@ public class RestClient {
 		params.add("pax", "1");
 		params.add("locale", Lang.EN.name().toLowerCase());
 		params.add("currency", Currency.EUR.name());
-		return sendRequest(template, CONNECTIONS_FIND, HttpMethod.GET, params, new ParameterizedTypeReference<DataItems>() {});
+		return sendRequest(searchTemplate, CONNECTIONS_FIND, HttpMethod.GET, params,
+				new ParameterizedTypeReference<DataItems>() {});
+	}
+	
+	public DataItem getCachedProviderInfo(String carrierId) throws IOCacheException {
+		try {
+			return getCachedObject(getProviderInfoCacheKey(carrierId), new ProviderInfoUpdateTask(carrierId));
+		} catch (ResponseError e) {
+			return null;
+		}
 	}
 	
 	public DataItem getProviderInfo(String carrierId) throws ResponseError {
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("locale", Lang.EN.name().toLowerCase());
 		params.add("currency", Currency.EUR.name());
-		return sendRequest(template, MARKETING_CARRIERS + "/" + carrierId, HttpMethod.GET, params, new ParameterizedTypeReference<DataItem>() {});
+		return sendRequest(searchTemplate, MARKETING_CARRIERS + "/" + carrierId, HttpMethod.GET, params,
+				new ParameterizedTypeReference<DataItem>() {});
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -173,6 +193,10 @@ public class RestClient {
 	public static String getConnectionsCacheKey(Date date, String from, String to) {
 		return CONNECTIONS_CACHE_KEY + String.join(";",
 				String.valueOf(DateUtils.truncate(date, Calendar.DATE).getTime()), from, to);
+	}
+	
+	public static String getProviderInfoCacheKey(String carrierId) {
+		return CONNECTIONS_CACHE_KEY + carrierId;
 	}
 
 }

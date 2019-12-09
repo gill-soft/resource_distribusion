@@ -60,12 +60,8 @@ public class Config {
 		return Long.valueOf(properties.getProperty("cache.stations.update.delay"));
 	}
 	
-	public static long getCacheRouteTimeToLive() {
-		return Long.valueOf(properties.getProperty("cache.route.time.to.live"));
-	}
-	
-	public static long getCacheRouteUpdateDelay() {
-		return Long.valueOf(properties.getProperty("cache.route.update.delay"));
+	public static long getCacheProviderInfoUpdateDelay() {
+		return Long.valueOf(properties.getProperty("cache.provider.info.update.delay"));
 	}
 	
 }
