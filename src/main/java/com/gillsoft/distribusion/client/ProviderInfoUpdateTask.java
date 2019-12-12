@@ -23,13 +23,13 @@ public class ProviderInfoUpdateTask extends AbstractUpdateTask {
 		RestClient client = ContextProvider.getBean(RestClient.class);
 		try {
 			DataItem item = client.getProviderInfo(carrierId);
-			writeObjectIgnoreAge(client.getCache(), RestClient.getProviderInfoCacheKey(carrierId), item,
-					Config.getCacheProviderInfoUpdateDelay());
+			writeObject(client.getCache(), RestClient.getProviderInfoCacheKey(carrierId), item,
+					0, Config.getCacheProviderInfoUpdateDelay(), true, false, poolType);
 		} catch (ResponseError e) {
 			
 			// ошибку тоже кладем в кэш
 			writeObject(client.getCache(), RestClient.getProviderInfoCacheKey(carrierId), e,
-					Config.getCacheErrorTimeToLive(), 0, false, true, poolType);
+					Config.getCacheErrorTimeToLive(), Config.getCacheErrorUpdateDelay(), false, false, poolType);
 		}
 	}
 

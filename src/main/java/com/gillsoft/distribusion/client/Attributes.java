@@ -2,8 +2,11 @@ package com.gillsoft.distribusion.client;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.text.ParseException;
 import java.util.Date;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.gillsoft.util.StringUtil;
 
 public class Attributes implements Serializable {
 
@@ -29,10 +32,10 @@ public class Attributes implements Serializable {
 	private String timeZone;
 
 	@JsonProperty("departure_time")
-	private Date departure;
+	private String departure;
 
 	@JsonProperty("arrival_time")
-	private Date arrival;
+	private String arrival;
 
 	private int duration;
 
@@ -97,7 +100,7 @@ public class Attributes implements Serializable {
 	private String retailerPartnerNumber;
 
 	@JsonProperty("created_at")
-	private Date created;
+	private String created;
 
 	@JsonProperty("trade_name")
 	private String tradeName;
@@ -154,10 +157,16 @@ public class Attributes implements Serializable {
 
 	private int fee;
 
-	private Date cutoff;
+	private String cutoff;
 
 	@JsonProperty("total_refund")
 	private int totalRefund;
+	
+	@JsonProperty("min_age")
+	private int minAge;
+	
+	@JsonProperty("max_age")
+	private int maxAge;
 
 	public String getName() {
 		return name;
@@ -224,19 +233,29 @@ public class Attributes implements Serializable {
 	}
 
 	public Date getDeparture() {
-		return departure;
+		return parse(departure);
 	}
 
-	public void setDeparture(Date departure) {
+	public void setDeparture(String departure) {
 		this.departure = departure;
 	}
 
 	public Date getArrival() {
-		return arrival;
+		return parse(arrival);
 	}
 
-	public void setArrival(Date arrival) {
+	public void setArrival(String arrival) {
 		this.arrival = arrival;
+	}
+	
+	private Date parse(String date) {
+		if (date != null) {
+			try {
+				return StringUtil.fullDateFormat.parse(date.replace("T", " "));
+			} catch (ParseException e) {
+			}
+		}
+		return null;
 	}
 
 	public int getDuration() {
@@ -285,6 +304,14 @@ public class Attributes implements Serializable {
 
 	public void setTitle(String title) {
 		this.title = title;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
 	}
 
 	public String getFirstName() {
@@ -416,10 +443,10 @@ public class Attributes implements Serializable {
 	}
 
 	public Date getCreated() {
-		return created;
+		return parse(created);
 	}
 
-	public void setCreated(Date created) {
+	public void setCreated(String created) {
 		this.created = created;
 	}
 
@@ -592,10 +619,10 @@ public class Attributes implements Serializable {
 	}
 
 	public Date getCutoff() {
-		return cutoff;
+		return parse(cutoff);
 	}
 
-	public void setCutoff(Date cutoff) {
+	public void setCutoff(String cutoff) {
 		this.cutoff = cutoff;
 	}
 
@@ -607,12 +634,20 @@ public class Attributes implements Serializable {
 		this.totalRefund = totalRefund;
 	}
 
-	public String getState() {
-		return state;
+	public int getMinAge() {
+		return minAge;
 	}
 
-	public void setState(String state) {
-		this.state = state;
+	public void setMinAge(int minAge) {
+		this.minAge = minAge;
+	}
+
+	public int getMaxAge() {
+		return maxAge;
+	}
+
+	public void setMaxAge(int maxAge) {
+		this.maxAge = maxAge;
 	}
 
 }

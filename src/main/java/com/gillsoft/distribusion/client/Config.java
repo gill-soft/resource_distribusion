@@ -64,4 +64,12 @@ public class Config {
 		return Long.valueOf(properties.getProperty("cache.provider.info.update.delay"));
 	}
 	
+	public static long getCacheTypeInfoTimeToLive() {
+		return Long.valueOf(properties.getProperty("cache.type.info.time.to.live"));
+	}
+	
+	public static long getCacheTypeInfoUpdateDelay() {
+		return Long.valueOf(properties.getProperty("cache.type.info.update.delay"));
+	}
+	
 }

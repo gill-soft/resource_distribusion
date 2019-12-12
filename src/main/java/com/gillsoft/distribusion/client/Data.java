@@ -45,5 +45,16 @@ public class Data implements Serializable {
 	public void setRelationships(Relationships relationships) {
 		this.relationships = relationships;
 	}
+	
+	public boolean isTripAvailable() {
+		return !getAttributes().isBookedOut()
+				&& getRelationships().getSegments() != null
+				&& getRelationships().getSegments().getData().size() == 1;
+	}
+	
+	public boolean isAdultPassengerType() {
+		return getAttributes().getName() != null
+				&& getAttributes().getName().toLowerCase().contains("adult");
+	}
 
 }

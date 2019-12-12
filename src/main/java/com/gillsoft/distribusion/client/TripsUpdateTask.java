@@ -46,7 +46,7 @@ public class TripsUpdateTask extends AbstractUpdateTask {
 		}
 		long max = 0;
 		for (Data item : items.getData()) {
-			if (isItemAvailable(item)
+			if (item.isTripAvailable()
 					&& item.getAttributes().getDeparture().getTime() > max) {
 				max = item.getAttributes().getDeparture().getTime();
 			}
@@ -58,10 +58,4 @@ public class TripsUpdateTask extends AbstractUpdateTask {
 		return max - System.currentTimeMillis();
 	}
 	
-	private boolean isItemAvailable(Data item) {
-		return !item.getAttributes().isBookedOut()
-				&& item.getRelationships().getSegments() != null
-				&& item.getRelationships().getSegments().getData().size() == 1;
-	}
-
 }

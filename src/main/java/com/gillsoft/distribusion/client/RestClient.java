@@ -1,6 +1,11 @@
 package com.gillsoft.distribusion.client;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URI;
+import java.text.MessageFormat;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -11,11 +16,13 @@ import java.util.Map;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.util.datetime.FastDateFormat;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
@@ -28,11 +35,15 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.gillsoft.cache.CacheHandler;
 import com.gillsoft.cache.IOCacheException;
 import com.gillsoft.cache.RedisMemoryCache;
 import com.gillsoft.logging.SimpleRequestResponseLoggingInterceptor;
 import com.gillsoft.model.Currency;
+import com.gillsoft.model.Customer;
 import com.gillsoft.model.Lang;
 import com.gillsoft.model.ResponseError;
 import com.gillsoft.util.RestTemplateUtil;
@@ -48,15 +59,20 @@ public class RestClient {
 	private static final String CONNECTIONS_FIND = "/connections/find";
 	private static final String MARKETING_CARRIERS = "/marketing_carriers";
 	private static final String VACANCY_SHOW = "/connections/vacancy";
-	private static final String BOOKINGS = "/bookings/create";
+	private static final String ORDERS = "/bookings/create";
 	private static final String BOOKINGS_SHOW = "/bookings";
-	private static final String TICKETS = "/tickets";
+	private static final String TICKETS = "/bookings/{0}/tickets";
 	private static final String CANCEL_INFO = "/cancellations/conditions";
 	private static final String CANCEL = "/cancellations/create";
 	
 	public static final String STATIONS_CACHE_KEY = "en.stations";
 	public static final String CONNECTIONS_CACHE_KEY = "connections.";
 	public static final String PROVIDER_INFO_CACHE_KEY = "provider.info.";
+	public static final String TYPE_INFO_CACHE_KEY = "type.info.";
+	
+	public static final String FULL_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
+	
+	public static final FastDateFormat fullDateFormat = FastDateFormat.getInstance(FULL_DATE_FORMAT);
 	
 	@Autowired
     @Qualifier("RedisMemoryCache")
@@ -103,13 +119,9 @@ public class RestClient {
 		return sendRequest(template, STATIONS, HttpMethod.GET, params, new ParameterizedTypeReference<DataItems>() {});
 	}
 	
-	public DataItems getCachedTrips(String dispatchId, String arrivalId, Date date) throws IOCacheException {
-		try {
-			return getCachedObject(getConnectionsCacheKey(date, dispatchId, arrivalId),
-					new TripsUpdateTask(dispatchId, arrivalId, date));
-		} catch (ResponseError e) {
-			return null;
-		}
+	public DataItems getCachedTrips(String dispatchId, String arrivalId, Date date) throws IOCacheException, ResponseError {
+		return getCachedObject(getConnectionsCacheKey(date, dispatchId, arrivalId),
+				new TripsUpdateTask(dispatchId, arrivalId, date));
 	}
 	
 	public DataItems getTrips(String dispatchId, String arrivalId, Date date) throws ResponseError {
@@ -124,12 +136,8 @@ public class RestClient {
 				new ParameterizedTypeReference<DataItems>() {});
 	}
 	
-	public DataItem getCachedProviderInfo(String carrierId) throws IOCacheException {
-		try {
-			return getCachedObject(getProviderInfoCacheKey(carrierId), new ProviderInfoUpdateTask(carrierId));
-		} catch (ResponseError e) {
-			return null;
-		}
+	public DataItem getCachedProviderInfo(String carrierId) throws IOCacheException, ResponseError {
+		return getCachedObject(getProviderInfoCacheKey(carrierId), new ProviderInfoUpdateTask(carrierId));
 	}
 	
 	public DataItem getProviderInfo(String carrierId) throws ResponseError {
@@ -138,6 +146,80 @@ public class RestClient {
 		params.add("currency", Currency.EUR.name());
 		return sendRequest(searchTemplate, MARKETING_CARRIERS + "/" + carrierId, HttpMethod.GET, params,
 				new ParameterizedTypeReference<DataItem>() {});
+	}
+	
+	public DataItem getCachedTypeInfo(TripIdModel idModel, String typeId) throws IOCacheException, ResponseError {
+		return getCachedObject(getTypeInfoCacheKey(idModel, typeId), new TypeInfoUpdateTask(idModel, typeId));
+	}
+	
+	public DataItem getTypeInfo(TripIdModel idModel, String typeId) throws ResponseError {
+		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+		params.add("departure_station", idModel.getFrom());
+		params.add("arrival_station", idModel.getTo());
+		params.add("marketing_carrier", idModel.getCarrier());
+		params.add("currency", Currency.EUR.name());
+		params.add("departure_time", fullDateFormat.format(idModel.getDeparture()));
+		params.add("arrival_time", fullDateFormat.format(idModel.getArrival()));
+		params.add("passengers[][type]", typeId);
+		params.add("passengers[][pax]", "1");
+		return sendRequest(searchTemplate, VACANCY_SHOW, HttpMethod.GET, params, new ParameterizedTypeReference<DataItem>() {});
+	}
+	
+	public DataItem getBooking(String bookingId) throws ResponseError {
+		return sendRequest(template, BOOKINGS_SHOW + "/" + bookingId, HttpMethod.GET, null, new ParameterizedTypeReference<DataItem>() {});
+	}
+
+	public DataItem confirm(ServiceIdModel serviceIdModel) throws ResponseError {
+		CreateBookingRequest request = createBookingRequest(serviceIdModel);
+		request.setPassengers(createPassengers(serviceIdModel));
+		return sendRequest(template, ORDERS, HttpMethod.POST, request, null, new ParameterizedTypeReference<DataItem>() {});
+	}
+	
+	private CreateBookingRequest createBookingRequest(ServiceIdModel serviceIdModel) {
+		CreateBookingRequest request = createDefaultBookingRequest();
+		Customer customer = serviceIdModel.getCustomer();
+		TripIdModel idModel = serviceIdModel.getIdModel();
+		request.setPhone(customer.getPhone());
+		request.setFirstName(customer.getName());
+		request.setLastName(customer.getSurname());
+		request.setCarrier(idModel.getCarrier());
+		request.setDepartureStation(idModel.getFrom());
+		request.setArrivalStation(idModel.getTo());
+		request.setDeparture(idModel.getDeparture());
+		request.setArrival(idModel.getArrival());
+		request.setTotalPrice(createPrice(serviceIdModel.getPrice()));
+		return request;
+	}
+	
+	private CreateBookingRequest createDefaultBookingRequest() {
+		CreateBookingRequest request = new CreateBookingRequest();
+		request.setStreetAndNumber("some address");
+		request.setZipCode("123456");
+		request.setCity("some city");
+		request.setEmail("info@gillsoft.tech");
+		request.setTitle("mr");
+		request.setTermsAccepted(true);
+		request.setLocale(Lang.EN.name().toLowerCase());
+		request.setCurrency(Currency.EUR.name());
+		request.setExecutePayment(false);
+		request.setSendCustomerEmail(false);
+		request.setPartnerNumber(Config.getPartnerNumber());
+		request.setPaymentMethod("demand_note");
+		request.setPax(1);
+		return request;
+	}
+	
+	private List<Passenger> createPassengers(ServiceIdModel serviceIdModel) {
+		Passenger passenger = new Passenger();
+		Customer customer = serviceIdModel.getCustomer();
+		passenger.setFirstName(customer.getName());
+		passenger.setLastName(customer.getSurname());
+		passenger.setType(serviceIdModel.getTypeId());
+		return Collections.singletonList(passenger);
+	}
+	
+	private BigDecimal createPrice(int price) {
+		return new BigDecimal(price).multiply(new BigDecimal(100));
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -166,16 +248,17 @@ public class RestClient {
 		RequestEntity<Object> requestEntity = new RequestEntity<>(request, apiKeyHeader, httpMethod, uri);
 		try {
 			ResponseEntity<T> response = template.exchange(requestEntity, typeReference);
-			checkErrors(response);
-			return response.getBody();
+			T body = response.getBody();
+			checkErrors(body);
+			return body;
 		} catch (RestClientException e) {
 			LOGGER.error("Send request error", e);
 			throw new ResponseError(e.getMessage());
 		}
 	}
 	
-	private <T extends ErrorResponse> void checkErrors(ResponseEntity<T> response) throws ResponseError {
-		List<Error> errors = response.getBody().getErrors();
+	private <T extends ErrorResponse> void checkErrors(T response) throws ResponseError {
+		List<Error> errors = response.getErrors();
 		if (errors != null
 				&& !errors.isEmpty()) {
 			StringBuilder errorMsg = new StringBuilder();
@@ -183,6 +266,38 @@ public class RestClient {
 				errorMsg.append(error.getCode()).append(": ").append(error.getTitle()).append("\r\n");
 			}
 			throw new ResponseError(errorMsg.toString());
+		}
+	}
+	
+	public String getTickets(String bookingId) throws ResponseError {
+		URI uri = UriComponentsBuilder.fromUriString(Config.getUrl()
+				+ MessageFormat.format(TICKETS, bookingId)).build().toUri();
+		RequestEntity<Object> requestEntity = new RequestEntity<>(null, HttpMethod.GET, uri);
+		ResponseEntity<Resource> response = template.exchange(requestEntity, Resource.class);
+		if (response.getStatusCode().is2xxSuccessful()) { 
+			try {
+				InputStream in = response.getBody().getInputStream();
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				byte[] buffer = new byte[256];
+				while (in.read(buffer) != -1) {
+					out.write(buffer);
+				}
+				checkErrors(out.toByteArray());
+				return StringUtil.toBase64(out.toByteArray());
+			} catch (IOException e) {
+				throw new ResponseError(e.getMessage());
+			}
+		} else {
+			throw new ResponseError("Get ticket " + bookingId + " error: " + response.getStatusCodeValue());
+		}
+	}
+	
+	private void checkErrors(byte[] bytes) throws ResponseError {
+		ObjectReader reader = new ObjectMapper().readerFor(new TypeReference<ErrorResponse>() { });
+		try {
+			ErrorResponse response = reader.readValue(bytes);
+			checkErrors(response);
+		} catch (IOException e) {
 		}
 	}
 
@@ -197,6 +312,13 @@ public class RestClient {
 	
 	public static String getProviderInfoCacheKey(String carrierId) {
 		return CONNECTIONS_CACHE_KEY + carrierId;
+	}
+	
+	public static String getTypeInfoCacheKey(TripIdModel idModel, String typeId) {
+		return TYPE_INFO_CACHE_KEY + String.join(";",
+				typeId, idModel.getCarrier(), idModel.getFrom(), idModel.getTo(),
+				String.valueOf(idModel.getDeparture().getTime()),
+				String.valueOf(idModel.getArrival().getTime()));
 	}
 
 }

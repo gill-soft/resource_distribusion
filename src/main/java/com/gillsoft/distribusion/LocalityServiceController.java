@@ -107,7 +107,6 @@ public class LocalityServiceController extends AbstractLocalityService {
 		locality.setId(item.getId());
 		locality.setName(Lang.EN, item.getAttributes().getName());
 		locality.setAddress(Lang.EN, getAddress(item));
-		locality.setCode(item.getAttributes().getCode());
 		locality.setLatitude(item.getAttributes().getLatitude());
 		locality.setLongitude(item.getAttributes().getLongitude());
 		locality.setTimezone(item.getAttributes().getTimeZone());
