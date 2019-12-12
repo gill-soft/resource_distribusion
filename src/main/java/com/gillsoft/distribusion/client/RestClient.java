@@ -192,10 +192,10 @@ public class RestClient {
 	
 	private CreateBookingRequest createDefaultBookingRequest() {
 		CreateBookingRequest request = new CreateBookingRequest();
-		request.setStreetAndNumber("some address");
-		request.setZipCode("123456");
-		request.setCity("some city");
-		request.setEmail("info@gillsoft.tech");
+		request.setStreetAndNumber(Config.getBookingStreet());
+		request.setZipCode(Config.getBookingZipCode());
+		request.setCity(Config.getBookingCity());
+		request.setEmail(Config.getBookingEmail());
 		request.setTitle("mr");
 		request.setTermsAccepted(true);
 		request.setLocale(Lang.EN.name().toLowerCase());

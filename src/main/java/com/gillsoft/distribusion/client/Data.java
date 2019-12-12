@@ -5,6 +5,8 @@ import java.io.Serializable;
 public class Data implements Serializable {
 
 	private static final long serialVersionUID = 8893764049117801762L;
+	
+	public static final String BOOKINGS_TYPE = "bookings";
 
 	private String id;
 

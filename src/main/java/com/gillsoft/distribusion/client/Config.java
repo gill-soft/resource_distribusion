@@ -32,6 +32,22 @@ public class Config {
 		return properties.getProperty("api.key");
 	}
 	
+	public static String getBookingStreet() {
+		return properties.getProperty("booking.street");
+	}
+	
+	public static String getBookingZipCode() {
+		return properties.getProperty("booking.zipCode");
+	}
+	
+	public static String getBookingEmail() {
+		return properties.getProperty("booking.email");
+	}
+	
+	public static String getBookingCity() {
+		return properties.getProperty("booking.city");
+	}
+	
 	public static int getRequestTimeout() {
 		return Integer.valueOf(properties.getProperty("request.timeout"));
 	}

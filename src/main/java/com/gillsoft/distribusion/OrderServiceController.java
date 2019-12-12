@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.gillsoft.abstract_rest_service.AbstractOrderService;
+import com.gillsoft.distribusion.client.Data;
 import com.gillsoft.distribusion.client.DataItem;
 import com.gillsoft.distribusion.client.OrderIdModel;
 import com.gillsoft.distribusion.client.RestClient;
@@ -241,6 +242,7 @@ public class OrderServiceController extends AbstractOrderService {
 		List<ServiceItem> resultItems = new ArrayList<>(idModels.size());
 		for (ServiceIdModel serviceIdModel : idModels) {
 			try {
+				checkTicketStatus(serviceIdModel, Data.BOOKINGS_TYPE);
 				String base64 = client.getTickets(serviceIdModel.getId());
 				ServiceItem serviceItem = addServiceItem(resultItems, serviceIdModel, true, null);
 				addServiceDocument(serviceItem, base64);
@@ -267,6 +269,13 @@ public class OrderServiceController extends AbstractOrderService {
 		document.setType(DocumentType.TICKET);
 		document.setBase64(base64);
 		serviceItem.setDocuments(Collections.singletonList(document));
+	}
+	
+	private void checkTicketStatus(ServiceIdModel serviceIdModel, String status) throws ResponseError {
+		DataItem booking = client.getBooking(serviceIdModel.getId());
+		if (!status.equals(booking.getData().getType())) {
+			throw new ResponseError("Service is not booked");
+		}
 	}
 
 }
