@@ -59,7 +59,7 @@ public class RestClient {
 	private static final String MARKETING_CARRIERS = "/marketing_carriers";
 	private static final String VACANCY_SHOW = "/connections/vacancy";
 	private static final String ORDERS = "/bookings/create";
-	private static final String BOOKINGS_SHOW = "/bookings";
+	private static final String BOOKINGS_SHOW = "/bookings/{0}";
 	private static final String TICKETS = "/bookings/{0}/tickets";
 	private static final String CANCEL_INFO = "/cancellations/conditions";
 	private static final String CANCEL = "/cancellations/create";
@@ -165,7 +165,7 @@ public class RestClient {
 	}
 	
 	public DataItem getBooking(String bookingId) throws ResponseError {
-		return sendRequest(template, BOOKINGS_SHOW + "/" + bookingId, HttpMethod.GET, null, new ParameterizedTypeReference<DataItem>() {});
+		return sendRequest(template, MessageFormat.format(BOOKINGS_SHOW, bookingId), HttpMethod.GET, null, new ParameterizedTypeReference<DataItem>() {});
 	}
 
 	public DataItem confirm(ServiceIdModel serviceIdModel) throws ResponseError {
@@ -215,6 +215,18 @@ public class RestClient {
 		passenger.setLastName(customer.getSurname());
 		passenger.setType(serviceIdModel.getTypeId());
 		return Collections.singletonList(passenger);
+	}
+	
+	public DataItem getConditions(String bookingId) throws ResponseError {
+		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+		params.add("booking", bookingId);
+		return sendRequest(template, CANCEL_INFO, HttpMethod.GET, params, new ParameterizedTypeReference<DataItem>() {});
+	}
+	
+	public DataItem cancel(String bookingId) throws ResponseError {
+		CreateBookingRequest request = new CreateBookingRequest();
+	    request.setBooking(bookingId);
+	    return sendRequest(template, CANCEL, HttpMethod.POST, request, null, new ParameterizedTypeReference<DataItem>() {});
 	}
 	
 	@SuppressWarnings("unchecked")

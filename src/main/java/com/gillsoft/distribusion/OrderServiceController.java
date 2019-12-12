@@ -1,5 +1,6 @@
 package com.gillsoft.distribusion;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,6 +19,7 @@ import com.gillsoft.distribusion.client.OrderIdModel;
 import com.gillsoft.distribusion.client.RestClient;
 import com.gillsoft.distribusion.client.ServiceIdModel;
 import com.gillsoft.distribusion.client.TripIdModel;
+import com.gillsoft.model.Currency;
 import com.gillsoft.model.Document;
 import com.gillsoft.model.DocumentType;
 import com.gillsoft.model.Price;
@@ -134,11 +136,13 @@ public class OrderServiceController extends AbstractOrderService {
 
 	@Override
 	public OrderResponse getResponse(String orderId) {
+		// TODO
 		throw RestTemplateUtil.createUnavailableMethod();
 	}
 
 	@Override
 	public OrderResponse getServiceResponse(String serviceId) {
+		// TODO
 		throw RestTemplateUtil.createUnavailableMethod();
 	}
 
@@ -195,64 +199,44 @@ public class OrderServiceController extends AbstractOrderService {
 
 	@Override
 	public OrderResponse prepareReturnServicesResponse(OrderRequest request) {
-		return returnServices(request, false);
+		return createOperationResponse(request, (resultItems, serviceIdModel) -> {
+			DataItem booking = getBookingIfStatus(serviceIdModel, Data.BOOKINGS_TYPE);
+			DataItem cancelInfo = client.getConditions(serviceIdModel.getId());
+			ServiceItem serviceItem = addServiceItem(resultItems, serviceIdModel, true, null);
+			int refundAmount = getRefundAmount(booking, cancelInfo);
+			addReturnPrice(serviceItem, refundAmount);
+		});
+	}
+	
+	private int getRefundAmount(DataItem booking, DataItem cancelInfo) {
+		return booking.getData().getAttributes().getTotalPrice() - cancelInfo.getData().getAttributes().getFee();
+	}
+	
+	private void addReturnPrice(ServiceItem serviceItem, int refund) {
+		Price price = new Price();
+		price.setAmount(new BigDecimal(refund).multiply(new BigDecimal("0.01")));
+		price.setCurrency(Currency.EUR);
+		serviceItem.setPrice(price);
 	}
 
 	@Override
 	public OrderResponse returnServicesResponse(OrderRequest request) {
-		return returnServices(request, true);
-	}
-	
-	public OrderResponse returnServices(OrderRequest request, boolean confirm) {
-//		OrderResponse response = new OrderResponse();
-//		response.setServices(new ArrayList<>(request.getServices().size()));
-//		for (ServiceItem serviceItem : request.getServices()) {
-//			TicketIdModel idModel = new TicketIdModel().create(serviceItem.getId());
-//			try {
-//				List<Passenger> passengers = client.preCancel(idModel.getOrderId(), idModel.getId());
-//				for (Passenger passenger : passengers) {
-//					if (passenger.getOrigin() == idModel.getFrom()
-//							&& passenger.getDestination() == idModel.getTo()) {
-//						if (!passenger.isNullifyEnable()) {
-//							throw new ResponseError("Return is disabled");
-//						}
-//						if (confirm) {
-//							client.confirmCancel(idModel.getOrderId(), idModel.getId(), passenger.getId());
-//							serviceItem.setConfirmed(true);
-//						}
-//						Price price = new Price();
-//						price.setCurrency(client.getCurrency(idModel.getCurrency()));
-//						price.setAmount(passengers.get(0).getReturnAmount().multiply(new BigDecimal("0.01")));
-//						serviceItem.setPrice(price);
-//					}
-//				}
-//			} catch (ResponseError e) {
-//				serviceItem.setError(new RestError(e.getMessage()));
-//			}
-//			response.getServices().add(serviceItem);
-//		}
-//		return response;
-		return null;
+		return createOperationResponse(request, (resultItems, serviceIdModel) -> {
+			getBookingIfStatus(serviceIdModel, Data.BOOKINGS_TYPE);
+			DataItem cancelInfo = client.cancel(serviceIdModel.getId());
+			ServiceItem serviceItem = addServiceItem(resultItems, serviceIdModel, true, null);
+			addReturnPrice(serviceItem, cancelInfo.getData().getAttributes().getTotalRefund());
+		});
 	}
 
 	@Override
 	public OrderResponse getPdfDocumentsResponse(OrderRequest request) {
-		OrderResponse response = new OrderResponse();
-		List<ServiceIdModel> idModels = getSelectedServices(request);
-		List<ServiceItem> resultItems = new ArrayList<>(idModels.size());
-		for (ServiceIdModel serviceIdModel : idModels) {
-			try {
-				checkTicketStatus(serviceIdModel, Data.BOOKINGS_TYPE);
-				String base64 = client.getTickets(serviceIdModel.getId());
-				ServiceItem serviceItem = addServiceItem(resultItems, serviceIdModel, true, null);
-				addServiceDocument(serviceItem, base64);
-			} catch (ResponseError e) {
-				addServiceItem(resultItems, serviceIdModel, false, new RestError(e.getMessage()));
-			}
-		}
-		response.setOrderId(request.getOrderId());
-		response.setServices(resultItems);
-		return response;
+		return createOperationResponse(request, (resultItems, serviceIdModel) -> {
+			getBookingIfStatus(serviceIdModel, Data.BOOKINGS_TYPE);
+			String base64 = client.getTickets(serviceIdModel.getId());
+			ServiceItem serviceItem = addServiceItem(resultItems, serviceIdModel, true, null);
+			addServiceDocument(serviceItem, base64);
+		});
 	}
 	
 	private List<ServiceIdModel> getSelectedServices(OrderRequest request) {
@@ -271,11 +255,34 @@ public class OrderServiceController extends AbstractOrderService {
 		serviceItem.setDocuments(Collections.singletonList(document));
 	}
 	
-	private void checkTicketStatus(ServiceIdModel serviceIdModel, String status) throws ResponseError {
+	private DataItem getBookingIfStatus(ServiceIdModel serviceIdModel, String status) throws ResponseError {
 		DataItem booking = client.getBooking(serviceIdModel.getId());
 		if (!status.equals(booking.getData().getType())) {
 			throw new ResponseError("Service is not booked");
 		}
+		return booking;
+	}
+	
+	private OrderResponse createOperationResponse(OrderRequest request, OperationService service) {
+		OrderResponse response = new OrderResponse();
+		List<ServiceIdModel> idModels = getSelectedServices(request);
+		List<ServiceItem> resultItems = new ArrayList<>(idModels.size());
+		for (ServiceIdModel serviceIdModel : idModels) {
+			try {
+				service.addOperationServiceItem(resultItems, serviceIdModel);
+			} catch (ResponseError e) {
+				addServiceItem(resultItems, serviceIdModel, false, new RestError(e.getMessage()));
+			}
+		}
+		response.setOrderId(request.getOrderId());
+		response.setServices(resultItems);
+		return response;
+	}
+	
+	private interface OperationService {
+		
+		public void addOperationServiceItem(List<ServiceItem> resultItems, ServiceIdModel serviceIdModel) throws ResponseError;
+		
 	}
 
 }
