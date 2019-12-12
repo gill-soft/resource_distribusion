@@ -3,7 +3,6 @@ package com.gillsoft.distribusion.client;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.text.MessageFormat;
 import java.util.Calendar;
@@ -185,9 +184,9 @@ public class RestClient {
 		request.setCarrier(idModel.getCarrier());
 		request.setDepartureStation(idModel.getFrom());
 		request.setArrivalStation(idModel.getTo());
-		request.setDeparture(idModel.getDeparture());
-		request.setArrival(idModel.getArrival());
-		request.setTotalPrice(createPrice(serviceIdModel.getPrice()));
+		request.setDeparture(fullDateFormat.format(idModel.getDeparture()));
+		request.setArrival(fullDateFormat.format(idModel.getArrival()));
+		request.setTotalPrice(serviceIdModel.getPrice());
 		return request;
 	}
 	
@@ -216,10 +215,6 @@ public class RestClient {
 		passenger.setLastName(customer.getSurname());
 		passenger.setType(serviceIdModel.getTypeId());
 		return Collections.singletonList(passenger);
-	}
-	
-	private BigDecimal createPrice(int price) {
-		return new BigDecimal(price).multiply(new BigDecimal(100));
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -272,7 +267,7 @@ public class RestClient {
 	public String getTickets(String bookingId) throws ResponseError {
 		URI uri = UriComponentsBuilder.fromUriString(Config.getUrl()
 				+ MessageFormat.format(TICKETS, bookingId)).build().toUri();
-		RequestEntity<Object> requestEntity = new RequestEntity<>(null, HttpMethod.GET, uri);
+		RequestEntity<Object> requestEntity = new RequestEntity<>(null, apiKeyHeader, HttpMethod.GET, uri);
 		ResponseEntity<Resource> response = template.exchange(requestEntity, Resource.class);
 		if (response.getStatusCode().is2xxSuccessful()) { 
 			try {

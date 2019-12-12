@@ -1,8 +1,6 @@
 package com.gillsoft.distribusion.client;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.Date;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,10 +21,10 @@ public class CreateBookingRequest implements Serializable {
 	private String arrivalStation;
 
 	@JsonProperty("departure_time")
-	private Date departure;
+	private String departure;
 
 	@JsonProperty("arrival_time")
-	private Date arrival;
+	private String arrival;
 
 	@JsonProperty("retailer_partner_number")
 	private String partnerNumber;
@@ -58,7 +56,7 @@ public class CreateBookingRequest implements Serializable {
 	private String paymentMethod;
 
 	@JsonProperty("total_price")
-	private BigDecimal totalPrice;
+	private int totalPrice;
 
 	private int pax;
 
@@ -106,19 +104,19 @@ public class CreateBookingRequest implements Serializable {
 		this.arrivalStation = arrivalStation;
 	}
 
-	public Date getDeparture() {
+	public String getDeparture() {
 		return departure;
 	}
 
-	public void setDeparture(Date departure) {
+	public void setDeparture(String departure) {
 		this.departure = departure;
 	}
 
-	public Date getArrival() {
+	public String getArrival() {
 		return arrival;
 	}
 
-	public void setArrival(Date arrival) {
+	public void setArrival(String arrival) {
 		this.arrival = arrival;
 	}
 
@@ -210,11 +208,11 @@ public class CreateBookingRequest implements Serializable {
 		this.paymentMethod = paymentMethod;
 	}
 
-	public BigDecimal getTotalPrice() {
+	public int getTotalPrice() {
 		return totalPrice;
 	}
 
-	public void setTotalPrice(BigDecimal totalPrice) {
+	public void setTotalPrice(int totalPrice) {
 		this.totalPrice = totalPrice;
 	}
 
