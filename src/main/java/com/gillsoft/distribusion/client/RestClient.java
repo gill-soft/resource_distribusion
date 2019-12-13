@@ -84,9 +84,12 @@ public class RestClient {
 	// для запросов поиска с меньшим таймаутом
 	private RestTemplate searchTemplate;
 	
+	private RestTemplate typeTemplate;
+	
 	public RestClient() {
 		template = createNewPoolingTemplate(Config.getRequestTimeout());
 		searchTemplate = createNewPoolingTemplate(Config.getSearchRequestTimeout());
+		typeTemplate = createNewPoolingTemplate(Config.getSearchRequestTimeout());
 		apiKeyHeader = createApiKeyHeader();
 	}
 	
@@ -151,7 +154,15 @@ public class RestClient {
 		return getCachedObject(getTypeInfoCacheKey(idModel, typeId), new TypeInfoUpdateTask(idModel, typeId));
 	}
 	
+	public DataItem getTypeInfoForCache(TripIdModel idModel, String typeId) throws ResponseError {
+		return getTypeInfo(idModel, typeId, typeTemplate);
+	}
+	
 	public DataItem getTypeInfo(TripIdModel idModel, String typeId) throws ResponseError {
+		return getTypeInfo(idModel, typeId, template);
+	}
+	
+	public DataItem getTypeInfo(TripIdModel idModel, String typeId, RestTemplate typeTemplate) throws ResponseError {
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("departure_station", idModel.getFrom());
 		params.add("arrival_station", idModel.getTo());
@@ -161,7 +172,7 @@ public class RestClient {
 		params.add("arrival_time", fullDateFormat.format(idModel.getArrival()));
 		params.add("passengers[][type]", typeId);
 		params.add("passengers[][pax]", "1");
-		return sendRequest(searchTemplate, VACANCY_SHOW, HttpMethod.GET, params, new ParameterizedTypeReference<DataItem>() {});
+		return sendRequest(typeTemplate, VACANCY_SHOW, HttpMethod.GET, params, new ParameterizedTypeReference<DataItem>() {});
 	}
 	
 	public DataItem getBooking(String bookingId) throws ResponseError {

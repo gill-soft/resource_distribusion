@@ -25,7 +25,7 @@ public class TypeInfoUpdateTask extends AbstractUpdateTask {
 	public void run() {
 		RestClient client = ContextProvider.getBean(RestClient.class);
 		try {
-			DataItem item = client.getTypeInfo(idModel, typeId);
+			DataItem item = client.getTypeInfoForCache(idModel, typeId);
 			writeObject(client.getCache(), RestClient.getTypeInfoCacheKey(idModel, typeId), item,
 					getTimeToLive(), Config.getCacheTypeInfoUpdateDelay(), false, false, poolType);
 		} catch (ResponseError e) {
