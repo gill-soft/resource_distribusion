@@ -65,6 +65,7 @@ public class OrderServiceController extends AbstractOrderService {
 				for (ServiceItem serviceItem : entry.getValue()) {
 					ServiceIdModel serviceIdModel = createServiceId(request, serviceItem, type);
 					orderId.getIds().add(serviceIdModel);
+					serviceItem.setId(serviceIdModel.asString());
 					serviceItem.setPrice(price);
 					resultItems.add(serviceItem);
 				}
