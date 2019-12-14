@@ -57,13 +57,10 @@ public class OrderServiceController extends AbstractOrderService {
 		for (Entry<String, List<ServiceItem>> entry : groupedServices.entrySet()) {
 			TripIdModel idModel = getTripIdModel(entry.getValue().get(0));
 			try {
-				DataItem type = client.getTypeInfo(idModel, entry.getKey());
-				checkVacant(type);
-				List<Tariff> tariffs = search.getTariffs(idModel.asString());
-				Tariff tariff = findTariff(tariffs, entry.getKey());
+				Tariff tariff = findTariff(idModel, entry.getKey());
 				Price price = search.createPrice(tariff);
 				for (ServiceItem serviceItem : entry.getValue()) {
-					ServiceIdModel serviceIdModel = createServiceId(request, serviceItem, type);
+					ServiceIdModel serviceIdModel = createServiceId(request, serviceItem, tariff);
 					orderId.getIds().add(serviceIdModel);
 					serviceItem.setId(serviceIdModel.asString());
 					serviceItem.setPrice(price);
@@ -95,25 +92,33 @@ public class OrderServiceController extends AbstractOrderService {
 		}
 	}
 	
-	private void checkVacant(DataItem dataType) throws ResponseError {
-		if (!dataType.getData().getAttributes().isVacant()) {
-			throw new ResponseError("Tariff " + dataType.getData().getId() + " is disabled.");
-		}
-	}
-	
-	private ServiceIdModel createServiceId(OrderRequest request, ServiceItem serviceItem, DataItem type) {
+	private ServiceIdModel createServiceId(OrderRequest request, ServiceItem serviceItem, Tariff tariff) {
 		TripIdModel idModel = getTripIdModel(serviceItem);
 		return new ServiceIdModel(idModel, request.getCustomers().get(serviceItem.getCustomer().getId()),
-				getServiceTariffId(serviceItem), type.getData().getAttributes().getTotalPrice());
+				getServiceTariffId(serviceItem), tariff.getValue().intValue() * 100);
 	}
 	
-	private Tariff findTariff(List<Tariff> tariffs, String tariffId) throws ResponseError {
+	private Tariff findTariff(TripIdModel idModel, String tariffId) throws ResponseError {
+		List<Tariff> tariffs = search.getTariffs(idModel.asString());
 		for (Tariff tariff : tariffs) {
 			if (Objects.equals(tariffId, tariff.getId())) {
+				setTariffAmount(idModel, tariff);
 				return tariff;
 			}
 		}
 		throw new ResponseError("Tariff " + tariffId + " not finded.");
+	}
+	
+	private void setTariffAmount(TripIdModel idModel, Tariff tariff) throws ResponseError {
+		DataItem typeInfo = client.getTypeInfo(idModel, tariff.getId());
+		checkVacant(typeInfo);
+		tariff.setValue(search.convert(typeInfo.getData().getAttributes().getTotalPrice()));
+	}
+	
+	private void checkVacant(DataItem dataType) throws ResponseError {
+		if (!dataType.getData().getAttributes().isVacant()) {
+			throw new ResponseError("Tariff " + dataType.getData().getId() + " is disabled.");
+		}
 	}
 	
 	private String getServiceTariffId(ServiceItem serviceItem) {

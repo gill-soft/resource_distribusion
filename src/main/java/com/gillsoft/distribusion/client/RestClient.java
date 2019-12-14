@@ -84,12 +84,9 @@ public class RestClient {
 	// для запросов поиска с меньшим таймаутом
 	private RestTemplate searchTemplate;
 	
-	private RestTemplate typeTemplate;
-	
 	public RestClient() {
 		template = createNewPoolingTemplate(Config.getRequestTimeout());
 		searchTemplate = createNewPoolingTemplate(Config.getSearchRequestTimeout());
-		typeTemplate = createNewPoolingTemplate(Config.getSearchRequestTimeout());
 		apiKeyHeader = createApiKeyHeader();
 	}
 	
@@ -148,14 +145,6 @@ public class RestClient {
 		params.add("currency", Currency.EUR.name());
 		return sendRequest(searchTemplate, MARKETING_CARRIERS + "/" + carrierId, HttpMethod.GET, params,
 				new ParameterizedTypeReference<DataItem>() {});
-	}
-	
-	public DataItem getCachedTypeInfo(TripIdModel idModel, String typeId) throws IOCacheException, ResponseError {
-		return getCachedObject(getTypeInfoCacheKey(idModel, typeId), new TypeInfoUpdateTask(idModel, typeId));
-	}
-	
-	public DataItem getTypeInfoForCache(TripIdModel idModel, String typeId) throws ResponseError {
-		return getTypeInfo(idModel, typeId, typeTemplate);
 	}
 	
 	public DataItem getTypeInfo(TripIdModel idModel, String typeId) throws ResponseError {

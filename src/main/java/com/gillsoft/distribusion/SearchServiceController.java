@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -176,10 +175,8 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 		segment.setArrival(createAndAddLocality(localities, connection.getRelationships().getArrival().getData().getId()));
 		segment.setPrice(createPrice(included, connection));
 		
-		TripIdModel idModel = new TripIdModel(connection);
-		initializeTariffs(idModel, carrier);
-		String id = idModel.asString();
-		segments.put(new TripIdModel(connection).asString(), segment);
+		String id = new TripIdModel(connection).asString();
+		segments.put(id, segment);
 		return id;
 	}
 	
@@ -230,7 +227,7 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 		tariff.setDescription(Lang.EN, dataType.getAttributes().getDescription());
 	}
 	
-	private BigDecimal convert(int value) {
+	public BigDecimal convert(int value) {
 		// value в центах
 		return new BigDecimal(value).multiply(new BigDecimal("0.01"));
 	}
@@ -284,21 +281,6 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 		}
 		return new Locality(fromDictId);
 	}
-	
-	private void initializeTariffs(TripIdModel idModel, Data carrier) {
-		for (Data dataType : carrier.getRelationships().getPassengerTypes().getData()) {
-			getTypeInfo(idModel, dataType.getId());
-		}
-	}
-	
-	private DataItem getTypeInfo(TripIdModel idModel, String typeId) {
-		try {
-			return client.getCachedTypeInfo(idModel, typeId);
-		} catch (IOCacheException e) {
-		} catch (ResponseError e) {
-		}
-		return null;
-	}
 
 	@Override
 	public Route getRouteResponse(String tripId) {
@@ -321,14 +303,7 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 		DataItem carrier = getProviderInfo(idModel.getCarrier());
 		if (carrier != null) {
 			Map<String, Data> included = createIncludedMap(carrier.getIncluded());
-			List<Tariff> tariffs = createTariffs(carrier, included);
-			for (Iterator<Tariff> iterator = tariffs.iterator(); iterator.hasNext();) {
-				Tariff tariff = iterator.next();
-				if (!setTariffAmount(idModel, tariff)) {
-					iterator.remove();
-				}
-			}
-			return tariffs;
+			return createTariffs(carrier, included);
 		} else {
 			return null;
 		}
@@ -354,19 +329,10 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 		return tariff;
 	}
 	
-	private boolean setTariffAmount(TripIdModel idModel, Tariff tariff) {
-		DataItem typeInfo = getTypeInfo(idModel, tariff.getId());
-		if (typeInfo != null
-				&& typeInfo.getData().getAttributes().isVacant()) {
-			tariff.setValue(convert(typeInfo.getData().getAttributes().getTotalPrice()));
-			return true;
-		}
-		return false;
-	}
-	
 	@Override
 	public List<RequiredField> getRequiredFieldsResponse(String tripId) {
 		List<RequiredField> requiredFields = new ArrayList<>();
+		requiredFields.add(RequiredField.ONLY_LATIN);
 		requiredFields.add(RequiredField.NAME);
 		requiredFields.add(RequiredField.SURNAME);
 		requiredFields.add(RequiredField.PHONE);
