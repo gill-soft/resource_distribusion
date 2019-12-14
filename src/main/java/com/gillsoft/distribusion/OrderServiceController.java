@@ -164,6 +164,7 @@ public class OrderServiceController extends AbstractOrderService {
 			try {
 				DataItem order = client.confirm(serviceIdModel);
 				ServiceItem serviceItem = addServiceItem(resultItems, serviceIdModel, true, null);
+				updateServiceItem(serviceItem, order);
 				ServiceIdModel newServiceIdModel = updateAndReturnNewServiceId(order, serviceItem);
 				newOrderIdModel.getIds().add(newServiceIdModel);
 			} catch (ResponseError e) {
@@ -192,6 +193,10 @@ public class OrderServiceController extends AbstractOrderService {
 		serviceItem.setNewId(newServiceIdModel.asString());
 		return newServiceIdModel;
 	}
+	
+	private void updateServiceItem(ServiceItem serviceItem, DataItem order) {
+		serviceItem.setNumber(order.getData().getAttributes().getMarketingCarrierBookingNumber());
+	}
 
 	@Override
 	public OrderResponse cancelResponse(String orderId) {
@@ -203,10 +208,17 @@ public class OrderServiceController extends AbstractOrderService {
 		return createOperationResponse(request, (resultItems, serviceIdModel) -> {
 			DataItem booking = getBookingIfStatus(serviceIdModel, Data.BOOKINGS_TYPE);
 			DataItem cancelInfo = client.getConditions(serviceIdModel.getId());
+			checkIfCancellationAllowed(cancelInfo);
 			ServiceItem serviceItem = addServiceItem(resultItems, serviceIdModel, true, null);
 			int refundAmount = getRefundAmount(booking, cancelInfo);
 			addReturnPrice(serviceItem, refundAmount);
 		});
+	}
+	
+	private void checkIfCancellationAllowed(DataItem cancelInfo) throws ResponseError {
+		if (!cancelInfo.getData().getAttributes().isAllowed()) {
+			throw new ResponseError("Return is not allowed");
+		}
 	}
 	
 	private int getRefundAmount(DataItem booking, DataItem cancelInfo) {
