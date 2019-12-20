@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +38,7 @@ import com.gillsoft.model.SimpleTripSearchPackage;
 import com.gillsoft.model.Tariff;
 import com.gillsoft.model.Trip;
 import com.gillsoft.model.TripContainer;
+import com.gillsoft.model.TripType;
 import com.gillsoft.model.Vehicle;
 import com.gillsoft.model.request.TripSearchRequest;
 import com.gillsoft.model.response.TripSearchResponse;
@@ -146,18 +146,30 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 	private Map<String, Data> createIncludedMap(List<Data> included) {
 		Map<String, Data> includes = new HashMap<>();
 		for (Data data : included) {
-			if (Objects.equals("stations", data.getType())) {
+			switch (data.getType()) {
+			case "stations":
 				includes.put("station_" + data.getId(), data);
-			} else if (Objects.equals("cities", data.getType())) {
+				break;
+			case "cities":
 				includes.put("city_" + data.getId(), data);
-			} else if (Objects.equals("marketing_carriers", data.getType())) {
+				break;
+			case "marketing_carriers":
 				includes.put("marketing_carrier_" + data.getId(), data);
-			} else if (Objects.equals("passenger_types", data.getType())) {
+				break;
+			case "passenger_types":
 				includes.put("passenger_type_" + data.getId(), data);
-			} else if (Objects.equals("segments", data.getType())) {
+				break;
+			case "segments":
 				includes.put("segment_" + data.getId(), data);
-			} else if (Objects.equals("operating_carriers", data.getType())) {
+				break;
+			case "operating_carriers":
 				includes.put("operating_carrier_" + data.getId(), data);
+				break;
+			case "vehicles":
+				includes.put("vehicle_" + data.getId(), data);
+				break;
+			default:
+				break;
 			}
 		}
 		return includes;
@@ -166,6 +178,8 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 	private String createAndAddSegment(Map<String, Locality> localities, Map<String, Organisation> organisations,
 			Map<String, Segment> segments, Data connection, Map<String, Data> included) {
 		Segment segment = new Segment();
+		Data vehicle = getVihicle(included, connection);
+		segment.setType(getTripType(vehicle));
 		Data carrier = getCarrier(included, connection);
 		segment.setNumber(carrier.getId());
 		segment.setCarrier(createAndAddOrganisation(organisations, carrier));
@@ -178,6 +192,29 @@ public class SearchServiceController extends SimpleAbstractTripSearchService<Sim
 		String id = new TripIdModel(connection).asString();
 		segments.put(id, segment);
 		return id;
+	}
+	
+	private TripType getTripType(Data vehicle) {
+		String vehicleTypeId = vehicle.getRelationships().getVehicleType().getData().getId();
+		switch (vehicleTypeId) {
+		case "TRAIN":
+			return TripType.RAILWAY_REGULAR;
+		case "BUS":
+			return TripType.BUS_REGULAR;
+		default:
+			return null;
+		}
+	}
+	
+	private Data getVihicle(Map<String, Data> included, Data connection) {
+		Data segment = getSegment(included, connection);
+		String vehicleId = segment.getRelationships().getVehicle().getData().getId();
+		return included.get("vehicle_" + vehicleId);
+	}
+	
+	private Data getSegment(Map<String, Data> included, Data connection) {
+		String segmentId = connection.getRelationships().getSegments().getData().get(0).getId();
+		return included.get("segment_" + segmentId);
 	}
 	
 	private Data getCarrier(Map<String, Data> included, Data connection) {

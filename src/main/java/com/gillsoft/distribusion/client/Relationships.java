@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Relationships implements Serializable {
 
-	private static final long serialVersionUID = 2637491377486012688L;
+	private static final long serialVersionUID = -1201416776513521919L;
 
 	private DataItem city;
 
@@ -31,6 +31,11 @@ public class Relationships implements Serializable {
 	private Cancellation cancellation;
 
 	private DataItems segments;
+	
+	private DataItem vehicle;
+	
+	@JsonProperty("vehicle_type")
+	private DataItem vehicleType;
 
 	public DataItem getCity() {
 		return city;
@@ -104,12 +109,20 @@ public class Relationships implements Serializable {
 		this.cancellation = cancellation;
 	}
 
-	@Override
-	public String toString() {
-		return "Relationships [city=" + city + ", departure=" + departure + ", arrival=" + arrival
-				+ ", marketingCarrier=" + marketingCarrier + ", operatingCarrier=" + operatingCarrier + ", passengers="
-				+ passengers + ", passengerTypes=" + passengerTypes + ", cancellation=" + cancellation + ", segments="
-				+ segments + "]";
+	public DataItem getVehicle() {
+		return vehicle;
+	}
+
+	public void setVehicle(DataItem vehicle) {
+		this.vehicle = vehicle;
+	}
+
+	public DataItem getVehicleType() {
+		return vehicleType;
+	}
+
+	public void setVehicleType(DataItem vehicleType) {
+		this.vehicleType = vehicleType;
 	}
 
 }

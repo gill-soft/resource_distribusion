@@ -49,8 +49,8 @@ public class Data implements Serializable {
 	}
 	
 	public boolean isTripAvailable() {
-		return !getAttributes().isBookedOut()
-				&& getRelationships().getSegments() != null
+		return /*!getAttributes().isBookedOut()
+				&& */getRelationships().getSegments() != null
 				&& getRelationships().getSegments().getData().size() == 1;
 	}
 	
