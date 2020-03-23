@@ -260,7 +260,7 @@ public class OrderServiceController extends AbstractOrderService {
 	private List<ServiceIdModel> getSelectedServices(OrderRequest request) {
 		if (request.getServices() != null
 				&& !request.getServices().isEmpty()) {
-			return request.getServices().stream().map(s -> new ServiceIdModel().create( s.getId())).collect(Collectors.toList());
+			return request.getServices().stream().map(s -> new ServiceIdModel().create(s.getId())).collect(Collectors.toList());
 		} else {
 			return new OrderIdModel().create(request.getOrderId()).getIds();
 		}
